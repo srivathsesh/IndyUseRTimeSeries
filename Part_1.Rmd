@@ -1,0 +1,414 @@
+---
+title: "Intro to tidyverts - Part 1"
+subtitle: ""
+author: Sri Seshadri
+date: "`r Sys.Date()`"
+session: 01
+output:
+  xaringan::moon_reader:
+    css: ["default", "assets/css/aml-theme.css", "assets/css/aml-fonts.css"]
+    seal: false 
+    lib_dir: libs
+    nature:
+      # autoplay: 5000
+      highlightStyle: solarized-light
+      highlightLanguage: R
+      highlightLines: true
+      countIncrementalSlides: false
+      ratio: "16:9"
+      beforeInit: "https://platform.twitter.com/widgets.js"
+    includes:
+      in_header: [assets/header.html]
+params:
+  Tidyverts:   "https://tidyverts.org"
+  RStudioConf: "https://github.com/rstudio-conf-2020/time-series-forecasting"
+  fpp3: "https://otexts.com/fpp3/"
+editor_options: 
+  chunk_output_typ: console
+---
+
+```{r knitr, include = FALSE}
+library(knitr)
+opts_chunk$set(digits = 3, fig.path = "images/part-1-")
+
+hexes <- function(x) {
+  x <- rev(sort(x))
+  markup <- function(pkg) glue::glue('<img src="images/{pkg}.png" class="title-hex">')
+  res <- purrr::map_chr(x, markup)
+  paste0(res, collapse = "")
+}
+```
+
+class: title-slide, bottom, center
+
+
+
+# `r rmarkdown::metadata$title`
+
+## `r rmarkdown::metadata$author`
+
+
+---
+
+class: center, middle
+
+Conference training material:
+
+`r params$RStudioConf`
+
+Package website:
+
+`r params$Tidyverts`
+
+Technical reference:
+
+`r params$fpp3`
+
+
+
+
+---
+
+# Agenda
+
+
+* Why `ts`ibble?
+
+  + Data type
+  + Issue / Problem
+  
+* Why fable?
+
+  + Modeling features
+  
+* feas`ts`
+
+
+
+---
+
+# A package that loads it all
+
+```{r datapull}
+library(fpp3)
+library(purrr)
+```
+
+---
+
+# Explore a dataset...
+
+```{r downloaddata}
+
+download.file("http://robjhyndman.com/data/tourism.xlsx", tourism_file <- tempfile())
+my_tourism <- readxl::read_excel(tourism_file) 
+my_tourism %>% head()
+```
+
+---
+
+
+There are 80 `Quarters` - 20 years of data. 
+
+8 `States` nests 76 `Regions`
+There are 4 `Purposes`
+
+```{r}
+my_tourism %>% 
+  distinct(Purpose)
+```
+
+There are `76 * 4 = 304` unique time series. So, `76 * 4 * 80 = 24320` data points.
+
+---
+
+# Visualize 
+
+.code80[
+
+```{r, fig.height=5, fig.width = 8,fig.align="center"}
+my_tourism %>% 
+ filter(Region == 'Gold Coast', Purpose == 'Holiday') %>% 
+  ggplot(aes(x=yearquarter(Quarter), y = Trips)) + 
+  geom_point() + geom_line() +
+  labs(x = "Year Quarter", y = "Trips", title = "Number of travelers to Gold Coast on holiday") +
+  theme_bw()
+```
+]
+---
+
+.code80[
+
+```{r,fig.width = 8, fig.align='center'}
+my_tourism %>% 
+ filter(Region == 'Melbourne', Purpose == 'Business') %>% 
+  ggplot(aes(x=yearquarter(Quarter), y = Trips)) + 
+  geom_point() + geom_line() +
+  labs(x = "Year Quarter", y = "Trips", title = "Number of travelers to Melboune on Business") +
+  theme_bw()
+```
+]
+---
+# Investigating time series 
+
+
+* Decompose series into trend, season and remainders
+* Fit models
+
+We needed the data to be as univariate time series object - `ts()`.
+
+```{r eval=F}
+?decompose
+?stl
+?stats::arima
+```
+
+For the 304 timeseries, it would be too much to handle...
+---
+
+# `r I(hexes(c("purrr")))`
+
+```{r}
+
+RegionStatePurpose <- my_tourism %>% 
+  select(Region,State,Purpose) %>% 
+  distinct()
+
+tssets <- RegionStatePurpose %>% 
+  pmap(function(Region,State,Purpose) my_tourism %>% 
+         filter(Region == !!Region,State == !!State, Purpose == !!Purpose) %>% 
+         pull(Trips) %>% ts(start = c(1998,1), frequency = 4))
+str(tssets)
+```
+
+
+---
+
+# What about xts? `r I(hexes(c("tidyr","lubridate")))`
+
+```{r, message=F}
+tourism_xts <- my_tourism %>% 
+  slice(1:160) %>% 
+  mutate(Key = rep(c("Business","Holiday"), each = 80)) %>% 
+  select(Quarter,Trips, Key) %>% 
+  pivot_wider(names_from = Key, values_from = Trips)
+
+tourism_xts %>% head()
+```
+
+---
+
+.code80[
+```{r,message=F, fig.height=5, fig.width=8, fig.align='center'}
+library(xts)
+tourism_xts %>% 
+  select(-Quarter) %>% 
+  xts(order.by = ymd(tourism_xts$Quarter)) %>% 
+  plot()
+```
+]
+
+It will be a very wide table for 304 timeseries. 
+
+What do we do? We use tsibble!
+
+---
+
+# tsibble `components` `r I(hexes(c("tsibble")))`
+
+1. `Index`
+2. `Key`
+3. Measured
+
+```{r}
+my_tourism %>% 
+  mutate(Quarter = yearquarter(Quarter)) %>% 
+  as_tsibble(key = c(Region,State,Purpose), #<<
+             index = Quarter) -> tourism_tsbl
+
+tourism_tsbl
+```
+
+---
+
+# autoplot `r I(hexes(c("tsibble")))`
+.code80[
+```{r,fig.height=3, fig.width=8, fig.align='center'}
+tourism_tsbl %>% 
+  autoplot(Trips) + guides(color = "none") + theme_bw() #<<
+```
+]
+
+.code80[
+```{r,fig.height=3, fig.width=8, fig.align='center'}
+tsibbledata::aus_production %>% 
+  autoplot(vars(Beer,Gas)) + theme_bw() #<<
+```
+]
+
+----
+# `select` keeps index by default `r I(hexes(c("tsibble")))`
+
+.code80[
+```{r}
+tsibbledata::aus_production %>% 
+  select(Beer,Gas) %>% 
+  head()
+```
+]
+
+---
+
+# `r I(hexes(c("tsibble")))`
+
+.code80[
+```{r, message = F,eval = F}
+tsibbledata::aus_production %>% 
+  select(Beer,Gas) %>% 
+  pivot_longer(-Quarter,names_to = "Key",values_to = "Production") %>% 
+  head(3)
+```
+]
+
+.code80[
+```{r, message = F,fig.height=4.5, fig.width=12, fig.align='center'}
+tsibbledata::aus_production %>% 
+  select(Beer,Gas) %>% 
+  pivot_longer(-Quarter,names_to = "Key",values_to = "Production") %>% 
+  as_tsibble(key = Key, index = Quarter) %>% 
+  autoplot() + theme_bw()  -> p1 #<<
+
+tsibbledata::aus_production %>% 
+  select(Beer,Gas) %>% 
+  pivot_longer(-Quarter,names_to = "Key",values_to = "Production") %>% 
+  as_tsibble(key = Key, index = Quarter) %>% 
+  autoplot(log(Production)) + theme_bw()  -> p2 #<<
+
+gridExtra::grid.arrange(p1,p2,ncol = 2)
+```
+]
+
+---
+
+# `group_by()` - making you lazy `r I(hexes(c("tsibble")))`
+
+.font80[ You dont have to include `index` in the group]
+.code90[
+```{r}
+tourism_tsbl %>% 
+  group_by(State,Purpose) %>% 
+  summarise(Trips = sum(Trips)) %>% 
+  head()
+```
+]
+
+---
+
+
+.code90[
+```{r,fig.height=4.5, fig.width=12, fig.align='center'}
+tourism_tsbl %>% 
+  group_by(State) %>% #<<
+  summarise(Trips = sum(Trips)) %>% 
+  autoplot(Trips) +
+  theme_bw()
+```
+]
+
+
+
+---
+
+# Exploring the series `r I(hexes(c("tsibble")))`
+
+.code90[
+```{r,fig.height=4.5, fig.width=12, fig.align='center'}
+tourism_tsbl %>% 
+  select(-State) %>% 
+  filter(Region %in% c('Gold Coast','Snowy Mountains'), Purpose == 'Holiday') %>% 
+  gg_subseries() + #<<
+  theme_bw() + 
+  geom_point()
+```
+]
+
+---
+
+# Exploring the series `r I(hexes(c("tsibble")))`
+
+.code90[
+```{r,fig.height=4.5, fig.width=12, fig.align='center'}
+tourism_tsbl %>% 
+  select(-State) %>% 
+  filter(Region %in% c('Gold Coast','Snowy Mountains'), Purpose == 'Holiday') %>% 
+  gg_season(Trips) + #<<
+  theme_bw() + 
+  geom_point()
+```
+]
+
+---
+# Season - none or many`r I(hexes(c("tsibble")))`
+
+.code80[
+
+```{r}
+tsibbledata::nyc_bikes %>% 
+  head(5)
+
+```
+]
+
+.code80[
+```{r,fig.height=3, fig.width=12, fig.align='center',message=F}
+tsibbledata::nyc_bikes %>% 
+  as_tibble() %>% 
+  mutate(start_date = as.Date(start_time)) %>% 
+  group_by(start_date) %>% 
+  summarise(Bikes = n()) %>% 
+  as_tsibble(index = start_date) %>% 
+  fill_gaps() %>% #<<
+  gg_season(Bikes,period = "month") #<<
+
+```
+]
+
+---
+
+#  Autocorrelations `r I(hexes(c("tsibble")))`
+
+.code80[
+```{r,fig.height=4.5, fig.width=12, fig.align='center'}
+tourism_tsbl %>% 
+  select(-State) %>% 
+  filter(Region =='Gold Coast', Purpose == 'Holiday') %>% 
+  gg_tsdisplay(Trips)
+```
+]
+
+---
+
+# ACF & PACF `r I(hexes(c("tsibble")))`
+
+```{r,fig.height=4.5, fig.width=12, fig.align='center'}
+tourism_tsbl %>% 
+  select(-State) %>% 
+  filter(Region =='Gold Coast', Purpose == 'Holiday') %>% 
+  PACF(Trips) %>% # Try ACF #<<
+  autoplot() + theme_bw()
+```
+
+---
+
+# Modeling Process
+
+1. Inspect & Explore data.
+2. Determine transformation process (if required).
+3. Choose training, validation and test data
+4. Fit models.
+5. Inspect model metrics.
+
+
+
+
+

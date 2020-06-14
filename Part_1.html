@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+  <head>
+    <title>Intro to tidyverts</title>
+    <meta charset="utf-8" />
+    <meta name="author" content="Sri Seshadri" />
+    <meta name="date" content="2020-06-14" />
+    <link href="libs/remark-css-0.0.1/default.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.2/css/all.css" integrity="sha384-oS3vJWv+0UjzBfQzYUhtDYW+Pj2yciDJxpsK1OYPAYjqT085Qq/1cq5FLXAZQ7Ay" crossorigin="anonymous">
+    <link rel="stylesheet" href="assets/css/aml-theme.css" type="text/css" />
+    <link rel="stylesheet" href="assets/css/aml-fonts.css" type="text/css" />
+  </head>
+  <body>
+    <textarea id="source">
+
+
+
+
+class: title-slide, bottom, center
+
+
+
+# Intro to tidyverts
+
+## Sri Seshadri
+
+
+---
+
+class: center, middle
+
+Conference training material:
+
+https://github.com/rstudio-conf-2020/time-series-forecasting
+
+Package website:
+
+https://tidyverts.org
+
+Technical reference:
+
+https://otexts.com/fpp3/
+
+
+
+
+---
+
+# Agenda
+
+
+* Why `ts`ibble?
+
+  + Data type
+  + Issue / Problem
+  
+* Why fable?
+
+  + Modeling features
+  
+* feas`ts`
+
+
+
+---
+
+# A package that loads it all
+
+
+```r
+library(fpp3)
+```
+
+```
+## ── Attaching packages ───────────────────────────────────────────────── fpp3 0.1 ──
+```
+
+```
+## ✓ tibble      3.0.1     ✓ tsibble     0.8.6
+## ✓ dplyr       0.8.5     ✓ tsibbledata 0.1.0
+## ✓ tidyr       1.0.2     ✓ feasts      0.1.2
+## ✓ lubridate   1.7.4     ✓ fable       0.1.1
+## ✓ ggplot2     3.2.1
+```
+
+```
+## ── Conflicts ──────────────────────────────────────────────────── fpp3_conflicts ──
+## x lubridate::date()       masks base::date()
+## x dplyr::filter()         masks stats::filter()
+## x tsibble::id()           masks dplyr::id()
+## x tsibble::interval()     masks lubridate::interval()
+## x dplyr::lag()            masks stats::lag()
+## x tsibble::new_interval() masks lubridate::new_interval()
+```
+
+```r
+library(purrr)
+```
+
+---
+
+# Explore a dataset...
+
+
+```r
+download.file("http://robjhyndman.com/data/tourism.xlsx", tourism_file &lt;- tempfile())
+my_tourism &lt;- readxl::read_excel(tourism_file) 
+my_tourism %&gt;% head()
+```
+
+```
+## # A tibble: 6 x 5
+##   Quarter    Region   State           Purpose  Trips
+##   &lt;chr&gt;      &lt;chr&gt;    &lt;chr&gt;           &lt;chr&gt;    &lt;dbl&gt;
+## 1 1998-01-01 Adelaide South Australia Business  135.
+## 2 1998-04-01 Adelaide South Australia Business  110.
+## 3 1998-07-01 Adelaide South Australia Business  166.
+## 4 1998-10-01 Adelaide South Australia Business  127.
+## 5 1999-01-01 Adelaide South Australia Business  137.
+## 6 1999-04-01 Adelaide South Australia Business  200.
+```
+
+---
+
+
+There are 80 `Quarters` - 20 years of data. 
+
+8 `States` nests 76 `Regions`
+There are 4 `Purposes`
+
+
+```r
+my_tourism %&gt;% 
+  distinct(Purpose)
+```
+
+```
+## # A tibble: 4 x 1
+##   Purpose 
+##   &lt;chr&gt;   
+## 1 Business
+## 2 Holiday 
+## 3 Other   
+## 4 Visiting
+```
+
+There are `76 * 4 = 304` unique time series. So, `76 * 4 * 80 = 24320` data points.
+
+---
+
+# Visualize 
+
+.code80[
+
+
+```r
+my_tourism %&gt;% 
+ filter(Region == 'Gold Coast', Purpose == 'Holiday') %&gt;% 
+  ggplot(aes(x=yearquarter(Quarter), y = Trips)) + 
+  geom_point() + geom_line() +
+  labs(x = "Year Quarter", y = "Trips", title = "Number of travelers to Gold Coast on holiday") +
+  theme_bw()
+```
+
+&lt;img src="images/part-1-unnamed-chunk-2-1.png" style="display: block; margin: auto;" /&gt;
+]
+---
+
+.code80[
+
+
+```r
+my_tourism %&gt;% 
+ filter(Region == 'Melbourne', Purpose == 'Business') %&gt;% 
+  ggplot(aes(x=yearquarter(Quarter), y = Trips)) + 
+  geom_point() + geom_line() +
+  labs(x = "Year Quarter", y = "Trips", title = "Number of travelers to Melboune on Business") +
+  theme_bw()
+```
+
+&lt;img src="images/part-1-unnamed-chunk-3-1.png" style="display: block; margin: auto;" /&gt;
+]
+---
+# Investigating time series 
+
+
+* Decompose series into trend, season and remainders
+* Fit models
+
+We needed the data to be as univariate time series object - `ts()`.
+
+
+```r
+?decompose
+?stl
+?stats::arima
+```
+
+For the 304 timeseries, it would be too much to handle...
+---
+
+# &lt;img src="images/purrr.png" class="title-hex"&gt;
+
+
+```r
+RegionStatePurpose &lt;- my_tourism %&gt;% 
+  select(Region,State,Purpose) %&gt;% 
+  distinct()
+
+tssets &lt;- RegionStatePurpose %&gt;% 
+  pmap(function(Region,State,Purpose) my_tourism %&gt;% 
+         filter(Region == !!Region,State == !!State, Purpose == !!Purpose) %&gt;% 
+         pull(Trips) %&gt;% ts(start = c(1998,1), frequency = 4))
+str(tssets)
+```
+
+```
+## List of 304
+##  $ : Time-Series [1:80] from 1998 to 2018: 135 110 166 127 137 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 224 130 156 182 185 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 58.4 39.5 38.4 33.8 25.9 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 242 170 232 181 200 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 0 0 7.42 0 0.67 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 6.81 13.67 12.92 18.14 10.91 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 0 4.642 2.555 0.774 0 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 2.99 7.75 3.6 8.35 2.2 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 7.54 3.36 21.78 3.98 18.41 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 8.15 34.66 76.54 27.22 12.5 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 3.1 0 5.81 1.56 7.82 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 1.43 18.34 6.79 8.11 9.64 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 26.2 27.2 33.7 31 28 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 82.2 104.5 118.4 111.4 130.2 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 0.83 3.439 2.59 2.831 0.771 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 23.3 37.4 19.3 61.8 39.9 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 50.7 77.8 75.5 81.5 43.6 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 61.9 39.6 85.5 74 48.3 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 4.83 1.03 14.14 2.42 2.7 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 44.3 46.6 31.8 40.6 45.6 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 51.1 66.4 62.2 34 43 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 54.1 68.5 100.7 86.3 52.9 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 0.713 4.54 0 0.617 0 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 14.84 18.99 21.68 17.99 7.48 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 74.8 67.2 52 53.2 50.9 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 280 230 200 250 373 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 3.35 8.66 5.56 3.29 4.37 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 117 106 103 156 134 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 45.8 12.6 25.9 9.7 31.3 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 69.1 37.3 38 38.8 53.3 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 0 6.97 0 0 23.37 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 67.4 80.7 53.7 87.6 48.5 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 12.47 4.34 4.67 16.76 3.6 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 5.33 3.17 37.87 2.54 1.41 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 0.665 0 0 0 0 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 0 0 1.03 10.06 1.33 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 0.835 2.018 2.997 6.003 1.215 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 36 32.5 17.9 40.1 16.4 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 1.21 0 0 1.79 0 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 8.76 14.96 8.84 30.3 17.66 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 16.51 13.23 25.35 9.17 12.84 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 90.9 75.4 32.7 54.4 71.1 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 5.3 13.47 2.32 3.38 0 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 119 119.5 67.7 119.7 93.6 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 18.76 7.08 16.83 16.53 19.02 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 104 158 165 135 180 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 2.48 1.03 5.88 0 5.2 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 70.5 34.1 66 93.8 86.1 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 219 180 297 275 280 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 394 239 255 276 382 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 47.6 80.5 46.8 26.7 56.9 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 392 451 404 415 331 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 31.4 15 28.7 47.3 33.4 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 54 37.9 54.9 35 38.4 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 0 2.06 0 3.87 3.84 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 37.5 55.1 45.9 30.5 43.7 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 150.2 99.9 129.6 101.7 95.5 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 196 127 111 170 108 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 21.7 17.6 23.3 32 12.8 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 183 172 173 146 162 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 42.7 43.3 16.2 24.1 27.6 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 99.2 97.8 92.5 102.9 142.1 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 19.89 8.99 4.18 5.46 8.22 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 100 88.5 71.5 96.7 74.4 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 24.2 14 49.2 31.5 27.7 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 279 140 105 159 211 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 2.93 6.28 6.1 0 7.56 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 149 183 144 141 220 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 4.84 13.82 24.56 13.16 8.57 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 33.5 70.6 57.7 99.6 62.9 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 3.48 0 0 0 2.92 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 47.1 20.7 16.5 31.6 27.9 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 16.52 21.14 14.78 5.96 8.4 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 136.8 110.1 65.5 102.5 142.4 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 0 2.98 1.38 2.38 0 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 42.9 64 31.3 109.9 60.2 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 99.8 152.6 99.8 136.7 56.9 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 170 174 198 285 208 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 11.7 21.5 45.7 26.3 34.9 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 143 209 212 143 180 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 55 74.7 37.2 78.8 50.5 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 78.4 91.9 149.6 93.3 88 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 2 8.31 12.27 14.95 13 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 56.2 113.6 89.2 81.5 68 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 11.396 1.349 2.972 3.289 0.916 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 12.8 30.3 18 28.5 24.9 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 1.37 3.23 5.65 0 0 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 9.14 20.75 3.4 9.76 3.85 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 40 65.4 66.4 91.2 65.4 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 78.1 129.4 135.5 91.9 114 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 5.86 8.71 25.97 12.38 4.69 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 94.6 149.1 157 154.7 116.6 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 48.9 43.4 42.4 44.5 32.7 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 21.7 45.6 106.3 28.6 15.6 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 4.62 6.41 1.68 2.23 0 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 12.4 21.4 29.5 13.1 20.3 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 1.315 6.577 0.683 7.158 3.884 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 127.5 91.1 32.2 78.7 109.3 ...
+##  $ : Time-Series [1:80] from 1998 to 2018: 1.362 0 0.859 4.785 0.541 ...
+##   [list output truncated]
+```
+
+
+---
+
+# What about xts? &lt;img src="images/tidyr.png" class="title-hex"&gt;&lt;img src="images/lubridate.png" class="title-hex"&gt;
+
+
+```r
+tourism_xts &lt;- my_tourism %&gt;% 
+  slice(1:160) %&gt;% 
+  mutate(Key = rep(c("Business","Holiday"), each = 80)) %&gt;% 
+  select(Quarter,Trips, Key) %&gt;% 
+  pivot_wider(names_from = Key, values_from = Trips)
+
+tourism_xts %&gt;% head()
+```
+
+```
+## # A tibble: 6 x 3
+##   Quarter    Business Holiday
+##   &lt;chr&gt;         &lt;dbl&gt;   &lt;dbl&gt;
+## 1 1998-01-01     135.    224.
+## 2 1998-04-01     110.    130.
+## 3 1998-07-01     166.    156.
+## 4 1998-10-01     127.    182.
+## 5 1999-01-01     137.    185.
+## 6 1999-04-01     200.    135.
+```
+
+---
+
+.code80[
+
+```r
+library(xts)
+tourism_xts %&gt;% 
+  select(-Quarter) %&gt;% 
+  xts(order.by = ymd(tourism_xts$Quarter)) %&gt;% 
+  plot()
+```
+
+&lt;img src="images/part-1-unnamed-chunk-7-1.png" style="display: block; margin: auto;" /&gt;
+]
+
+It will be a very wide table for 304 timeseries. 
+
+What do we do? We use tsibble!
+
+---
+
+# tsibble `components` &lt;img src="images/tsibble.png" class="title-hex"&gt;
+
+1. `Index`
+2. `Key`
+3. Measured
+
+
+```r
+my_tourism %&gt;% 
+  mutate(Quarter = yearquarter(Quarter)) %&gt;% 
+* as_tsibble(key = c(Region,State,Purpose),
+             index = Quarter) -&gt; tourism_tsbl
+
+tourism_tsbl
+```
+
+```
+## # A tsibble: 24,320 x 5 [1Q]
+## # Key:       Region, State, Purpose [304]
+##    Quarter Region   State           Purpose  Trips
+##      &lt;qtr&gt; &lt;chr&gt;    &lt;chr&gt;           &lt;chr&gt;    &lt;dbl&gt;
+##  1 1998 Q1 Adelaide South Australia Business  135.
+##  2 1998 Q2 Adelaide South Australia Business  110.
+##  3 1998 Q3 Adelaide South Australia Business  166.
+##  4 1998 Q4 Adelaide South Australia Business  127.
+##  5 1999 Q1 Adelaide South Australia Business  137.
+##  6 1999 Q2 Adelaide South Australia Business  200.
+##  7 1999 Q3 Adelaide South Australia Business  169.
+##  8 1999 Q4 Adelaide South Australia Business  134.
+##  9 2000 Q1 Adelaide South Australia Business  154.
+## 10 2000 Q2 Adelaide South Australia Business  169.
+## # … with 24,310 more rows
+```
+
+---
+
+# autoplot &lt;img src="images/tsibble.png" class="title-hex"&gt;
+.code80[
+
+```r
+tourism_tsbl %&gt;% 
+* autoplot(Trips) + guides(color = "none") + theme_bw()
+```
+
+&lt;img src="images/part-1-unnamed-chunk-9-1.png" style="display: block; margin: auto;" /&gt;
+]
+
+.code80[
+
+```r
+tsibbledata::aus_production %&gt;% 
+* autoplot(vars(Beer,Gas)) + theme_bw()
+```
+
+&lt;img src="images/part-1-unnamed-chunk-10-1.png" style="display: block; margin: auto;" /&gt;
+]
+
+----
+# `select` keeps index by default &lt;img src="images/tsibble.png" class="title-hex"&gt;
+
+.code80[
+
+```r
+tsibbledata::aus_production %&gt;% 
+  select(Beer,Gas) %&gt;% 
+  head()
+```
+
+```
+## Selecting index: "Quarter"
+```
+
+```
+## # A tsibble: 6 x 3 [1Q]
+##    Beer   Gas Quarter
+##   &lt;dbl&gt; &lt;dbl&gt;   &lt;qtr&gt;
+## 1   284     5 1956 Q1
+## 2   213     6 1956 Q2
+## 3   227     7 1956 Q3
+## 4   308     6 1956 Q4
+## 5   262     5 1957 Q1
+## 6   228     7 1957 Q2
+```
+]
+
+---
+
+# &lt;img src="images/tsibble.png" class="title-hex"&gt;
+
+.code80[
+
+```r
+tsibbledata::aus_production %&gt;% 
+  select(Beer,Gas) %&gt;% 
+  pivot_longer(-Quarter,names_to = "Key",values_to = "Production") %&gt;% 
+  head(3)
+```
+]
+
+.code80[
+
+```r
+tsibbledata::aus_production %&gt;% 
+  select(Beer,Gas) %&gt;% 
+  pivot_longer(-Quarter,names_to = "Key",values_to = "Production") %&gt;% 
+  as_tsibble(key = Key, index = Quarter) %&gt;% 
+* autoplot() + theme_bw()  -&gt; p1
+
+tsibbledata::aus_production %&gt;% 
+  select(Beer,Gas) %&gt;% 
+  pivot_longer(-Quarter,names_to = "Key",values_to = "Production") %&gt;% 
+  as_tsibble(key = Key, index = Quarter) %&gt;% 
+* autoplot(log(Production)) + theme_bw()  -&gt; p2
+
+gridExtra::grid.arrange(p1,p2,ncol = 2)
+```
+
+&lt;img src="images/part-1-unnamed-chunk-13-1.png" style="display: block; margin: auto;" /&gt;
+]
+
+---
+
+# `group_by()` - making you lazy &lt;img src="images/tsibble.png" class="title-hex"&gt;
+
+.font80[ You dont have to include `index` in the group]
+.code90[
+
+```r
+tourism_tsbl %&gt;% 
+  group_by(State,Purpose) %&gt;% 
+  summarise(Trips = sum(Trips)) %&gt;% 
+  head()
+```
+
+```
+## # A tibble: 6 x 4
+## # Groups:   State [1]
+##   State Purpose  Quarter Trips
+##   &lt;chr&gt; &lt;chr&gt;      &lt;qtr&gt; &lt;dbl&gt;
+## 1 ACT   Business 1998 Q1 150. 
+## 2 ACT   Business 1998 Q2  99.9
+## 3 ACT   Business 1998 Q3 130. 
+## 4 ACT   Business 1998 Q4 102. 
+## 5 ACT   Business 1999 Q1  95.5
+## 6 ACT   Business 1999 Q2 229.
+```
+]
+
+---
+
+
+.code90[
+
+```r
+tourism_tsbl %&gt;% 
+* group_by(State) %&gt;%
+  summarise(Trips = sum(Trips)) %&gt;% 
+  autoplot(Trips) +
+  theme_bw()
+```
+
+&lt;img src="images/part-1-unnamed-chunk-15-1.png" style="display: block; margin: auto;" /&gt;
+]
+
+
+
+---
+
+# Exploring the series &lt;img src="images/tsibble.png" class="title-hex"&gt;
+
+.code90[
+
+```r
+tourism_tsbl %&gt;% 
+  select(-State) %&gt;% 
+  filter(Region %in% c('Gold Coast','Snowy Mountains'), Purpose == 'Holiday') %&gt;% 
+* gg_subseries() +
+  theme_bw() + 
+  geom_point()
+```
+
+```
+## Plot variable not specified, automatically selected `y = Trips`
+```
+
+&lt;img src="images/part-1-unnamed-chunk-16-1.png" style="display: block; margin: auto;" /&gt;
+]
+
+---
+
+# Exploring the series &lt;img src="images/tsibble.png" class="title-hex"&gt;
+
+.code90[
+
+```r
+tourism_tsbl %&gt;% 
+  select(-State) %&gt;% 
+  filter(Region %in% c('Gold Coast','Snowy Mountains'), Purpose == 'Holiday') %&gt;% 
+* gg_season(Trips) +
+  theme_bw() + 
+  geom_point()
+```
+
+&lt;img src="images/part-1-unnamed-chunk-17-1.png" style="display: block; margin: auto;" /&gt;
+]
+
+---
+# Season - none or many&lt;img src="images/tsibble.png" class="title-hex"&gt;
+
+.code80[
+
+
+```r
+tsibbledata::nyc_bikes %&gt;% 
+  head(5)
+```
+
+```
+## # A tsibble: 5 x 12 [!] &lt;America/New_York&gt;
+## # Key:       bike_id [1]
+##   bike_id start_time          stop_time           start_station start_lat
+##   &lt;fct&gt;   &lt;dttm&gt;              &lt;dttm&gt;              &lt;fct&gt;             &lt;dbl&gt;
+## 1 26301   2018-02-26 19:11:03 2018-02-26 19:15:40 3186               40.7
+## 2 26301   2018-02-27 07:52:49 2018-02-27 07:58:13 3203               40.7
+## 3 26301   2018-02-27 12:03:27 2018-02-27 12:04:54 3202               40.7
+## 4 26301   2018-02-27 13:53:51 2018-02-27 14:21:04 3638               40.7
+## 5 26301   2018-02-27 14:30:42 2018-02-27 14:33:11 3638               40.7
+## # … with 7 more variables: start_long &lt;dbl&gt;, end_station &lt;fct&gt;, end_lat &lt;dbl&gt;,
+## #   end_long &lt;dbl&gt;, type &lt;fct&gt;, birth_year &lt;dbl&gt;, gender &lt;fct&gt;
+```
+]
+
+.code80[
+
+```r
+tsibbledata::nyc_bikes %&gt;% 
+  as_tibble() %&gt;% 
+  mutate(start_date = as.Date(start_time)) %&gt;% 
+  group_by(start_date) %&gt;% 
+  summarise(Bikes = n()) %&gt;% 
+  as_tsibble(index = start_date) %&gt;% 
+* fill_gaps() %&gt;%
+* gg_season(Bikes,period = "month")
+```
+
+&lt;img src="images/part-1-unnamed-chunk-19-1.png" style="display: block; margin: auto;" /&gt;
+]
+
+---
+
+#  Autocorrelations &lt;img src="images/tsibble.png" class="title-hex"&gt;
+
+.code80[
+
+```r
+tourism_tsbl %&gt;% 
+  select(-State) %&gt;% 
+  filter(Region =='Gold Coast', Purpose == 'Holiday') %&gt;% 
+  gg_tsdisplay(Trips) 
+```
+
+&lt;img src="images/part-1-unnamed-chunk-20-1.png" style="display: block; margin: auto;" /&gt;
+]
+
+---
+
+.code80[
+
+```r
+tourism_tsbl %&gt;% 
+  select(-State) %&gt;% 
+  filter(Region =='Gold Coast', Purpose == 'Holiday') %&gt;% 
+* PACF(Trips) %&gt;% # Try ACF
+  autoplot()
+```
+
+&lt;img src="images/part-1-unnamed-chunk-21-1.png" style="display: block; margin: auto;" /&gt;
+]
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script src="https://platform.twitter.com/widgets.js"></script>
+<script>var slideshow = remark.create({
+"highlightStyle": "solarized-light",
+"highlightLanguage": "R",
+"highlightLines": true,
+"countIncrementalSlides": false,
+"ratio": "16:9"
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();
+(function() {
+  "use strict"
+  /* Replace <script> tags in slides area to make them executable
+   *
+   * Runs after post-processing of markdown source into slides and replaces only
+   * <script>s on the last slide of continued slides using the .has-continuation
+   * class added by xaringan. Finally, any <script>s in the slides area that
+   * aren't executed are commented out.
+   */
+  var scripts = document.querySelectorAll(
+    '.remark-slides-area .remark-slide-container:not(.has-continuation) script'
+  );
+  if (!scripts.length) return;
+  for (var i = 0; i < scripts.length; i++) {
+    var s = document.createElement('script');
+    var code = document.createTextNode(scripts[i].textContent);
+    s.appendChild(code);
+    scripts[i].parentElement.replaceChild(s, scripts[i]);
+  }
+  var scriptsNotExecuted = document.querySelectorAll(
+    '.remark-slides-area .remark-slide-container.has-continuation script'
+  );
+  if (!scriptsNotExecuted.length) return;
+  for (var i = 0; i < scriptsNotExecuted.length; i++) {
+    var comment = document.createComment(scriptsNotExecuted[i].outerHTML)
+    scriptsNotExecuted[i].parentElement.replaceChild(comment, scriptsNotExecuted[i])
+  }
+})();
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+// adds .remark-code-has-line-highlighted class to <pre> parent elements
+// of code chunks containing highlighted lines with class .remark-code-line-highlighted
+(function(d) {
+  const hlines = d.querySelectorAll('.remark-code-line-highlighted');
+  const preParents = [];
+  const findPreParent = function(line, p = 0) {
+    if (p > 1) return null; // traverse up no further than grandparent
+    const el = line.parentElement;
+    return el.tagName === "PRE" ? el : findPreParent(el, ++p);
+  };
+
+  for (let line of hlines) {
+    let pre = findPreParent(line);
+    if (pre && !preParents.includes(pre)) preParents.push(pre);
+  }
+  preParents.forEach(p => p.classList.add("remark-code-has-line-highlighted"));
+})(document);</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>
