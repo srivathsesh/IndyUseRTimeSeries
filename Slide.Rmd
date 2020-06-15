@@ -23,6 +23,7 @@ params:
   RStudioConf: "https://github.com/rstudio-conf-2020/time-series-forecasting"
   fpp3: "https://otexts.com/fpp3/"
   deck: "https://github.com/srivathsesh/IndyUseRTimeSeries"
+  css: "https://github.com/rstudio-conf-2020/applied-ml"
 editor_options: 
   chunk_output_typ: console
 ---
@@ -67,6 +68,10 @@ Technical reference:
 This slide deck:
 
 `r params$deck`
+
+CSS stolen from:
+
+`r params$css`
 
 
 
@@ -393,6 +398,12 @@ tsibbledata::nyc_bikes %>%
 
 ---
 
+# `fill_gaps()` can be dangerous
+
+[read more][./appendix/fppvsts.html]
+
+---
+
 #  Autocorrelations `r I(hexes(c("tsibble")))`
 
 .code80[
@@ -419,7 +430,7 @@ tourism_tsbl %>%
 ---
 # `gg_lag()` `r I(hexes(c("tsibble")))`
 .code80[
-```{r,fig.height=5,fig.align='center'}
+```{r,fig.align='center'}
 tourism_tsbl %>% 
   select(-State) %>% 
   filter(Region =='Gold Coast', Purpose == 'Holiday') %>% 
@@ -535,7 +546,7 @@ tourism_tsbl %>%
 # Fit model `r I(hexes(c("tsibble","fable")))`
 
 
-.code80[
+.code90[
 ```{r}
 # benchmark meodels
 tourism_tsbl %>% 
@@ -555,17 +566,19 @@ fit_benchmark
 ---
 # Model report & forecast `r I(hexes(c("fable")))`
 
-.code80[
+
 ```{r}
 fit_benchmark %>% 
   select(arima) %>% 
   report() #<<
 ```
-]
 
---- 
-# `r I(hexes(c("fable")))`
-**Fable is smart to figure the filtering and test data!**
+
+---
+# smart fable! `r I(hexes(c("fable")))`
+
+
+Fable is smart to figure the filtering and test data!
 
 .code80[
 ```{r,fig.height=4.5, fig.width=12, fig.align='center'}
@@ -592,30 +605,32 @@ fcts %>%
 ---
 # OOS error `r I(hexes(c("fable")))`
 
-.code80[
+
 ```{r}
 fcts %>% 
   accuracy(tourism_tsbl) #<<
 ```
-]
+
 
 ---
 # Inspect model fit `r I(hexes(c("fable")))`
 
 .code80[
-```{r}
+```{r, fig.align='center'}
 fit_benchmark %>% 
   select(ets) %>% 
   gg_tsresiduals()
 ```
 ]
 
-.code80[
+---
+
+
 ```{r}
 augment(fit_benchmark) %>% 
   features(.resid,ljung_box)
 ```
-]
+
 
 ---
 
@@ -630,7 +645,7 @@ class: center, middle
 There is a way to `ensemble` models here
 
 .code60[
-```{r,fig.height=4.5, fig.width=12, fig.align='center'}
+```{r,fig.height=4.5, fig.width=12, fig.align='center', warning=F, message=F}
 tourism_tsbl %>% 
   filter(Region == "Australia's South West", Purpose == "Holiday") %>% 
   filter(year(Quarter) < 2015) %>%  # get training data #<<
@@ -639,7 +654,7 @@ tourism_tsbl %>%
     arima = ARIMA(log(Trips)), #<<
     ets = ETS(log(Trips)) #<<
   ) %>% 
-  mutate(ensemble = (snaive + arima + ets)/3)-> fit_benchmark
+  mutate(ensemble = (snaive + arima + ets)/3) -> fit_benchmark #<<
 
 fit_benchmark %>% 
   fabletools::forecast(h = "3 years") %>% 
@@ -652,7 +667,7 @@ fit_benchmark %>%
 
 # Ensemble accuracy `r I(hexes(c("fable")))`
 
-```{r}
+```{r, warning=F}
 fit_benchmark %>% 
   fabletools::forecast(h = "3 years") %>% 
   accuracy(tourism_tsbl) #<<
@@ -664,7 +679,7 @@ fit_benchmark %>%
 # Slap a model on 304 time series in tsibble `r I(hexes(c("fable")))`
 
 .code80[
-```{r}
+```{r, eval = F}
 tourism_tsbl %>% 
   #filter(Region == "Australia's South West", Purpose == "Holiday") %>% 
   filter(year(Quarter) < 2015) %>%  # get training data #<<
@@ -673,7 +688,12 @@ tourism_tsbl %>%
     arima = ARIMA(Trips),
     ets = ETS(Trips)
   ) -> fit_benchmark_All
+```
+]
 
+.code80[
+```{r}
+load("fit_benchmark_All.RData")
 fit_benchmark_All
 ```
 ]
@@ -704,6 +724,87 @@ fit_benchmark_All %>%
 ]
 
 
+---
 
+# External regressors `r I(hexes(c("fable")))`
 
+.code80[
+```{r,fig.height=5, fig.width=8, fig.align='center'}
+us_change %>%
+  pivot_longer(-Quarter, names_to = "variable", values_to = "value") %>%
+  ggplot(aes(y = value, x = Quarter, group = variable)) +
+  geom_line() + facet_grid(variable ~ ., scales = "free_y") +
+  xlab("Year") + ylab("") +
+  ggtitle("Quarterly changes in US consumption and personal income")
+```
+]
 
+---
+
+.code80[
+```{r}
+fit <- us_change %>%
+  model(regarima = ARIMA(Consumption ~ Income + Production + Savings + Unemployment))
+report(fit)
+
+```
+]
+
+---
+
+# Harmonic regression  `r I(hexes(c("fable")))`
+
+.code80[
+```{r, fig.width=8, fig.height=5, fig.align='center'}
+aus_cafe <- aus_retail %>%
+  filter(Industry == "Cafes, restaurants and takeaway food services",
+         year(Month) %in% 2004:2018) %>%
+  summarise(Turnover = sum(Turnover)) 
+
+aus_cafe %>% 
+  autoplot(Turnover) + theme_bw()
+```
+]
+
+---
+
+# Harmonic regression  `r I(hexes(c("fable")))`
+
+.code80[
+```{r}
+fit <- aus_cafe %>%
+  model(
+   ` K = 1` = ARIMA(log(Turnover) ~ fourier(K = 1) + PDQ(0, 0, 0)),
+    `K = 2 `= ARIMA(log(Turnover) ~ fourier(K = 2) + PDQ(0, 0, 0)),
+    `K = 3 `= ARIMA(log(Turnover) ~ fourier(K = 3) + PDQ(0, 0, 0)),
+    `K = 4` = ARIMA(log(Turnover) ~ fourier(K = 4) + PDQ(0, 0, 0)),
+    `K = 5` = ARIMA(log(Turnover) ~ fourier(K = 5) + PDQ(0, 0, 0)),
+    `K = 6` = ARIMA(log(Turnover) ~ fourier(K = 6) + PDQ(0, 0, 0))
+  )
+
+glance(fit)
+```
+]
+
+---
+# Harmonic regression  `r I(hexes(c("fable")))`
+
+.code90[
+```{r}
+ fit %>% 
+  select(`K = 6`) %>% 
+  report()
+```
+]
+
+---
+# Harmonic regression  `r I(hexes(c("fable")))`
+
+.code90[
+```{r,fig.align='center'}
+fit %>% 
+  select(`K = 6`) %>% 
+  forecast(h = "4 years") %>% 
+  autoplot(aus_cafe) + theme_bw()
+```
+]

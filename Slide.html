@@ -45,6 +45,10 @@ This slide deck:
 
 https://github.com/srivathsesh/IndyUseRTimeSeries
 
+CSS stolen from:
+
+https://github.com/rstudio-conf-2020/applied-ml
+
 
 
 ---
@@ -635,6 +639,12 @@ tsibbledata::nyc_bikes %&gt;%
 
 ---
 
+# `fill_gaps()` can be dangerous
+
+[read more][./appendix/fppvsts.html]
+
+---
+
 #  Autocorrelations &lt;img src="images/tsibble.png" class="title-hex"&gt;
 
 .code80[
@@ -694,7 +704,8 @@ tourism_tsbl %&gt;%
 # Transformations &lt;img src="images/tsibble.png" class="title-hex"&gt;&lt;img src="images/feasts.png" class="title-hex"&gt;&lt;img src="images/fable.png" class="title-hex"&gt;
 
  Variance stabilization 
- 
+
+.code80[ 
 
 ```r
 food &lt;- aus_retail %&gt;% 
@@ -704,8 +715,8 @@ food %&gt;%
   autoplot(Turnover) + theme_bw()
 ```
 
-![](images/part-1-unnamed-chunk-23-1.png)&lt;!-- --&gt;
-
+&lt;img src="images/part-1-unnamed-chunk-23-1.png" style="display: block; margin: auto;" /&gt;
+]
 ---
 # Varaince stabilization &lt;img src="images/tsibble.png" class="title-hex"&gt;&lt;img src="images/feasts.png" class="title-hex"&gt;&lt;img src="images/fable.png" class="title-hex"&gt;
 
@@ -819,7 +830,7 @@ tourism_tsbl %&gt;%
 # Fit model &lt;img src="images/tsibble.png" class="title-hex"&gt;&lt;img src="images/fable.png" class="title-hex"&gt;
 
 
-.code80[
+.code90[
 
 ```r
 # benchmark meodels
@@ -847,7 +858,7 @@ fit_benchmark
 ---
 # Model report &amp; forecast &lt;img src="images/fable.png" class="title-hex"&gt;
 
-.code80[
+
 
 ```r
 fit_benchmark %&gt;% 
@@ -867,14 +878,19 @@ fit_benchmark %&gt;%
 ## sigma^2 estimated as 2124:  log likelihood=-336.55
 ## AIC=683.09   AICc=684.13   BIC=693.89
 ```
-]
 
-**Fable is smart to figure the filtering and test data!**
+
+---
+# smart fable! &lt;img src="images/fable.png" class="title-hex"&gt;
+
+
+Fable is smart to figure the filtering and test data!
 
 .code80[
 
 ```r
 fit_benchmark %&gt;% 
+  
   fabletools::forecast(h = "3 years") -&gt; fcts
 
 fcts %&gt;% 
@@ -898,7 +914,7 @@ fcts %&gt;%
 ---
 # OOS error &lt;img src="images/fable.png" class="title-hex"&gt;
 
-.code80[
+
 
 ```r
 fcts %&gt;% 
@@ -913,7 +929,7 @@ fcts %&gt;%
 ## 2 ets    Austra… West… Holiday Test  32.9   48.5  38.8  6.83  9.04 0.940 -0.349 
 ## 3 snaive Austra… West… Holiday Test  -5.44  58.9  52.0 -1.30 12.5  1.26  -0.0663
 ```
-]
+
 
 ---
 # Inspect model fit &lt;img src="images/fable.png" class="title-hex"&gt;
@@ -926,10 +942,12 @@ fit_benchmark %&gt;%
   gg_tsresiduals()
 ```
 
-![](images/part-1-unnamed-chunk-33-1.png)&lt;!-- --&gt;
+&lt;img src="images/part-1-unnamed-chunk-33-1.png" style="display: block; margin: auto;" /&gt;
 ]
 
-.code80[
+---
+
+
 
 ```r
 augment(fit_benchmark) %&gt;% 
@@ -944,7 +962,7 @@ augment(fit_benchmark) %&gt;%
 ## 2 Australia's South West Western Australia Holiday ets     0.0454   0.831  
 ## 3 Australia's South West Western Australia Holiday snaive  6.98     0.00825
 ```
-]
+
 
 ---
 
@@ -958,6 +976,7 @@ class: center, middle
 
 There is a way to `ensemble` models here
 
+.code60[
 
 ```r
 tourism_tsbl %&gt;% 
@@ -968,18 +987,15 @@ tourism_tsbl %&gt;%
 *   arima = ARIMA(log(Trips)),
 *   ets = ETS(log(Trips))
   ) %&gt;% 
-  mutate(ensemble = (snaive + arima + ets)/3)-&gt; fit_benchmark
+* mutate(ensemble = (snaive + arima + ets)/3) -&gt; fit_benchmark
 
 fit_benchmark %&gt;% 
   fabletools::forecast(h = "3 years") %&gt;% 
 * autoplot(tourism_tsbl)
 ```
 
-```
-## Warning: Combinations of non-normal forecast distributions is not supported.
-```
-
 &lt;img src="images/part-1-unnamed-chunk-35-1.png" style="display: block; margin: auto;" /&gt;
+]
 
 ---
 
@@ -990,10 +1006,6 @@ fit_benchmark %&gt;%
 fit_benchmark %&gt;% 
   fabletools::forecast(h = "3 years") %&gt;% 
 * accuracy(tourism_tsbl)
-```
-
-```
-## Warning: Combinations of non-normal forecast distributions is not supported.
 ```
 
 ```
@@ -1022,7 +1034,13 @@ tourism_tsbl %&gt;%
     arima = ARIMA(Trips),
     ets = ETS(Trips)
   ) -&gt; fit_benchmark_All
+```
+]
 
+.code80[
+
+```r
+load("fit_benchmark_All.RData")
 fit_benchmark_All
 ```
 
@@ -1060,7 +1078,7 @@ fit_benchmark_All %&gt;%
   autoplot(tourism_tsbl, level = NULL) + theme_bw()
 ```
 
-&lt;img src="images/part-1-unnamed-chunk-38-1.png" style="display: block; margin: auto;" /&gt;
+&lt;img src="images/part-1-unnamed-chunk-39-1.png" style="display: block; margin: auto;" /&gt;
 ]
 
 .code80[
@@ -1081,6 +1099,151 @@ fit_benchmark_All %&gt;%
 ## 2 ets    Adela… Sout… Holiday Test  25.3   34.5  29.9 12.4   16.0  1.40  0.0900 
 ## 3 snaive Adela… Sout… Holiday Test   8.22  30.5  21.4  2.44  12.4  1.00  0.00218
 ```
+]
+
+
+---
+
+# External regressors &lt;img src="images/fable.png" class="title-hex"&gt;
+
+.code80[
+
+```r
+us_change %&gt;%
+  pivot_longer(-Quarter, names_to = "variable", values_to = "value") %&gt;%
+  ggplot(aes(y = value, x = Quarter, group = variable)) +
+  geom_line() + facet_grid(variable ~ ., scales = "free_y") +
+  xlab("Year") + ylab("") +
+  ggtitle("Quarterly changes in US consumption and personal income")
+```
+
+&lt;img src="images/part-1-unnamed-chunk-41-1.png" style="display: block; margin: auto;" /&gt;
+]
+
+---
+
+.code80[
+
+```r
+fit &lt;- us_change %&gt;%
+  model(regarima = ARIMA(Consumption ~ Income + Production + Savings + Unemployment))
+report(fit)
+```
+
+```
+## Series: Consumption 
+## Model: LM w/ ARIMA(0,1,2) errors 
+## 
+## Coefficients:
+##           ma1     ma2  Income  Production  Savings  Unemployment
+##       -1.0882  0.1118  0.7472      0.0370  -0.0531       -0.2096
+## s.e.   0.0692  0.0676  0.0403      0.0229   0.0029        0.0986
+## 
+## sigma^2 estimated as 0.09588:  log likelihood=-47.13
+## AIC=108.27   AICc=108.86   BIC=131.25
+```
+]
+
+---
+
+# Harmonic regression  &lt;img src="images/fable.png" class="title-hex"&gt;
+
+.code80[
+
+```r
+aus_cafe &lt;- aus_retail %&gt;%
+  filter(Industry == "Cafes, restaurants and takeaway food services",
+         year(Month) %in% 2004:2018) %&gt;%
+  summarise(Turnover = sum(Turnover)) 
+
+aus_cafe %&gt;% 
+  autoplot(Turnover) + theme_bw()
+```
+
+&lt;img src="images/part-1-unnamed-chunk-43-1.png" style="display: block; margin: auto;" /&gt;
+]
+
+---
+
+# Harmonic regression  &lt;img src="images/fable.png" class="title-hex"&gt;
+
+.code80[
+
+```r
+fit &lt;- aus_cafe %&gt;%
+  model(
+   ` K = 1` = ARIMA(log(Turnover) ~ fourier(K = 1) + PDQ(0, 0, 0)),
+    `K = 2 `= ARIMA(log(Turnover) ~ fourier(K = 2) + PDQ(0, 0, 0)),
+    `K = 3 `= ARIMA(log(Turnover) ~ fourier(K = 3) + PDQ(0, 0, 0)),
+    `K = 4` = ARIMA(log(Turnover) ~ fourier(K = 4) + PDQ(0, 0, 0)),
+    `K = 5` = ARIMA(log(Turnover) ~ fourier(K = 5) + PDQ(0, 0, 0)),
+    `K = 6` = ARIMA(log(Turnover) ~ fourier(K = 6) + PDQ(0, 0, 0))
+  )
+
+glance(fit)
+```
+
+```
+## # A tibble: 6 x 8
+##   .model     sigma2 log_lik   AIC  AICc   BIC ar_roots  ma_roots 
+##   &lt;chr&gt;       &lt;dbl&gt;   &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;list&gt;    &lt;list&gt;   
+## 1 " K = 1" 0.00175     317. -616. -615. -588. &lt;cpl [2]&gt; &lt;cpl [3]&gt;
+## 2 "K = 2 " 0.00107     362. -700. -698. -661. &lt;cpl [5]&gt; &lt;cpl [1]&gt;
+## 3 "K = 3 " 0.000761    394. -763. -761. -725. &lt;cpl [3]&gt; &lt;cpl [1]&gt;
+## 4 "K = 4"  0.000539    427. -822. -818. -771. &lt;cpl [1]&gt; &lt;cpl [5]&gt;
+## 5 "K = 5"  0.000317    474. -919. -917. -875. &lt;cpl [2]&gt; &lt;cpl [0]&gt;
+## 6 "K = 6"  0.000316    474. -920. -918. -875. &lt;cpl [0]&gt; &lt;cpl [1]&gt;
+```
+]
+
+---
+# Harmonic regression  &lt;img src="images/fable.png" class="title-hex"&gt;
+
+.code90[
+
+```r
+ fit %&gt;% 
+  select(`K = 6`) %&gt;% 
+  report()
+```
+
+```
+## Series: Turnover 
+## Model: LM w/ ARIMA(0,1,1) errors 
+## Transformation: log(.x) 
+## 
+## Coefficients:
+##           ma1  fourier(K = 6)C1_12  fourier(K = 6)S1_12  fourier(K = 6)C2_12
+##       -0.3953               0.0068              -0.0363              -0.0044
+## s.e.   0.0619               0.0024               0.0024               0.0016
+##       fourier(K = 6)S2_12  fourier(K = 6)C3_12  fourier(K = 6)S3_12
+##                   -0.0215              -0.0070              -0.0355
+## s.e.               0.0016               0.0014               0.0014
+##       fourier(K = 6)C4_12  fourier(K = 6)S4_12  fourier(K = 6)C5_12
+##                    0.0035              -0.0202              -0.0069
+## s.e.               0.0013               0.0013               0.0013
+##       fourier(K = 6)S5_12  fourier(K = 6)C6_12  intercept
+##                   -0.0249               0.0014     0.0039
+## s.e.               0.0013               0.0009     0.0008
+## 
+## sigma^2 estimated as 0.0003163:  log likelihood=474.03
+## AIC=-920.06   AICc=-917.5   BIC=-875.44
+```
+]
+
+---
+# Harmonic regression  &lt;img src="images/fable.png" class="title-hex"&gt;
+
+.code90[
+
+```r
+fit %&gt;% 
+  select(`K = 6`) %&gt;% 
+  forecast(h = "4 years") %&gt;% 
+  autoplot(aus_cafe) + theme_bw()
+```
+
+&lt;img src="images/part-1-unnamed-chunk-46-1.png" style="display: block; margin: auto;" /&gt;
 ]
     </textarea>
 <style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
