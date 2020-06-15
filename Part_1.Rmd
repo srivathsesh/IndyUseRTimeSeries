@@ -1,9 +1,8 @@
 ---
-title: "Intro to tidyverts - Part 1"
+title: "Intro to tidyverts"
 subtitle: ""
 author: Sri Seshadri
 date: "`r Sys.Date()`"
-session: 01
 output:
   xaringan::moon_reader:
     css: ["default", "assets/css/aml-theme.css", "assets/css/aml-fonts.css"]
@@ -23,6 +22,7 @@ params:
   Tidyverts:   "https://tidyverts.org"
   RStudioConf: "https://github.com/rstudio-conf-2020/time-series-forecasting"
   fpp3: "https://otexts.com/fpp3/"
+  deck: "https://github.com/srivathsesh/IndyUseRTimeSeries"
 editor_options: 
   chunk_output_typ: console
 ---
@@ -64,24 +64,9 @@ Technical reference:
 
 `r params$fpp3`
 
+This slide deck:
 
-
-
----
-
-# Agenda
-
-
-* Why `ts`ibble?
-
-  + Data type
-  + Issue / Problem
-  
-* Why fable?
-
-  + Modeling features
-  
-* feas`ts`
+`r params$deck`
 
 
 
@@ -96,15 +81,28 @@ library(purrr)
 
 ---
 
-# Explore a dataset...
+# Why `tidyverts`?
 
+1. Packages like stats, forecast, astsa requires input data as a univariate time series data.
+
+   +  What if you have a large data comprised of many time series? many variables floating in R's envioronment?
+   
+2. Interface with many methods in `tidyverse`.
+
+3. Awesome plotting methods.
+
+4. Interface with `broom` to inspect model.
+
+5. Easy evaluation of model metrics.
+
+.code80[
 ```{r downloaddata}
 
 download.file("http://robjhyndman.com/data/tourism.xlsx", tourism_file <- tempfile())
 my_tourism <- readxl::read_excel(tourism_file) 
 my_tourism %>% head()
 ```
-
+]
 ---
 
 
@@ -151,11 +149,12 @@ my_tourism %>%
 ---
 # Investigating time series 
 
+To...
 
-* Decompose series into trend, season and remainders
-* Fit models
+   * Decompose series into trend, season and remainders
+   * Fit models
 
-We needed the data to be as univariate time series object - `ts()`.
+We need the data to be as univariate time series object - `ts()`.
 
 ```{r eval=F}
 ?decompose
@@ -163,7 +162,8 @@ We needed the data to be as univariate time series object - `ts()`.
 ?stats::arima
 ```
 
-For the 304 timeseries, it would be too much to handle...
+`Split the data into 304 time series?`
+
 ---
 
 # `r I(hexes(c("purrr")))`
@@ -208,18 +208,35 @@ tourism_xts %>%
 ```
 ]
 
-It will be a very wide table for 304 timeseries. 
+It will be a `very wide` table for 304 timeseries. 
 
-What do we do? We use tsibble!
+What do we do? We use `tsibble!`
+
 
 ---
 
-# tsibble `components` `r I(hexes(c("tsibble")))`
+# Modeling Process - Time series data.
+
+1. `Inspect & Explore data.`
+
+2. Determine transformation process (if required).
+
+3. Choose training, validation &/ test data.
+
+4. Fit models.
+
+5. Inspect model metrics.
+
+
+---
+
+# Components of tsibble data type `r I(hexes(c("tsibble")))`
 
 1. `Index`
 2. `Key`
 3. Measured
 
+.code80[
 ```{r}
 my_tourism %>% 
   mutate(Quarter = yearquarter(Quarter)) %>% 
@@ -228,6 +245,7 @@ my_tourism %>%
 
 tourism_tsbl
 ```
+]
 
 ---
 
@@ -399,14 +417,291 @@ tourism_tsbl %>%
 ```
 
 ---
+# `gg_lag()` `r I(hexes(c("tsibble")))`
+.code80[
+```{r,fig.height=5,fig.align='center'}
+tourism_tsbl %>% 
+  select(-State) %>% 
+  filter(Region =='Gold Coast', Purpose == 'Holiday') %>% 
+  gg_lag(Trips, geom = "point") +  #<<
+  theme_bw()
+```
+]
 
+---
+# Modeling Process
+
+1. Inspect & Explore data.
+2. `Determine transformation process (if required).`
+3. Choose training, validation &/ test data
+4. Fit models.
+5. Inspect model metrics.
+
+---
+
+
+# Transformations `r I(hexes(c("tsibble","fable","feasts")))`
+
+ Variance stabilization 
+
+.code80[ 
+```{r,fig.height=4.5, fig.align='center'}
+food <- aus_retail %>% 
+  filter(Industry == "Food retailing") %>% 
+  summarise(Turnover = sum(Turnover))
+food %>% 
+  autoplot(Turnover) + theme_bw()
+```
+]
+---
+# Varaince stabilization `r I(hexes(c("tsibble","fable","feasts")))`
+
+.code80[
+```{r}
+BoxCoxLambda <- food %>% 
+  features(Turnover, features = guerrero) %>%  #?features_by_tag #<<
+  pull(lambda_guerrero)
+
+BoxCoxLambda
+```
+]
+
+.code80[
+```{r,fig.height=4.5, fig.align='center'}
+food %>% 
+  autoplot(box_cox(Turnover,BoxCoxLambda)) + #<<
+  labs( y = "Transformed Turnover") +
+  theme_bw()
+```
+]
+
+---
+
+# Feature Extraction `r I(hexes(c("tsibble","fable","feasts")))`
+
+.code80[
+```{r}
+tourism_tsbl %>% 
+  features(Trips,feat_stl) %>% 
+  head()
+```
+]
+
+
+---
+
+# `r I(hexes(c("tsibble","fable","feasts")))`
+
+.code80[
+```{r}
+tourism_tsbl %>% 
+  features(Trips,feat_stl) %>% 
+  ggplot(aes(x=trend_strength, y = seasonal_strength_year, col = Purpose)) + 
+  facet_wrap(~State) +
+  geom_point() + theme_bw()
+```
+]
+
+
+---
+# Find the ost seasonal `and` trending series `r I(hexes(c("tsibble","fable","feasts")))`
+
+.code80[
+```{r,fig.height=4.5, fig.width=12, fig.align='center'}
+tourism_tsbl %>% 
+  features(Trips,feat_stl) %>% 
+  mutate(trendSeasonScore = trend_strength * seasonal_strength_year) %>% 
+  filter(trendSeasonScore == max(trendSeasonScore)) -> TrendingSeasonal
+
+tourism_tsbl %>% 
+  right_join(TrendingSeasonal) %>% 
+  autoplot(Trips) + facet_wrap(~State + Region + Purpose) + theme_bw()
+  
+  
+```
+]
+
+---
 # Modeling Process
 
 1. Inspect & Explore data.
 2. Determine transformation process (if required).
-3. Choose training, validation and test data
-4. Fit models.
+3. `Choose training, validation &/ test data`
+4. `Fit models.`
 5. Inspect model metrics.
+
+---
+
+# Fit model `r I(hexes(c("tsibble","fable")))`
+
+
+.code80[
+```{r}
+# benchmark meodels
+tourism_tsbl %>% 
+  filter(Region == "Australia's South West", Purpose == "Holiday") %>% 
+  filter(year(Quarter) < 2015) %>%  # get training data #<<
+  model(
+    snaive = SNAIVE(Trips),
+    arima = ARIMA(Trips),
+    ets = ETS(Trips)
+  ) -> fit_benchmark
+
+fit_benchmark
+  
+```
+]
+
+---
+# Model report & forecast `r I(hexes(c("fable")))`
+
+.code80[
+```{r}
+fit_benchmark %>% 
+  select(arima) %>% 
+  report() #<<
+```
+]
+
+--- 
+# `r I(hexes(c("fable")))`
+**Fable is smart to figure the filtering and test data!**
+
+.code80[
+```{r,fig.height=4.5, fig.width=12, fig.align='center'}
+fit_benchmark %>% 
+  
+  fabletools::forecast(h = "3 years") -> fcts
+
+fcts %>% 
+  autoplot(tourism_tsbl) + #<<
+  theme_bw()
+```
+]
+
+---
+# Modeling Process
+
+1. Inspect & Explore data.
+2. Determine transformation process (if required).
+3. Choose training, validation &/ test data`
+4. Fit models.`
+5. `Inspect model metrics.`
+
+
+---
+# OOS error `r I(hexes(c("fable")))`
+
+.code80[
+```{r}
+fcts %>% 
+  accuracy(tourism_tsbl) #<<
+```
+]
+
+---
+# Inspect model fit `r I(hexes(c("fable")))`
+
+.code80[
+```{r}
+fit_benchmark %>% 
+  select(ets) %>% 
+  gg_tsresiduals()
+```
+]
+
+.code80[
+```{r}
+augment(fit_benchmark) %>% 
+  features(.resid,ljung_box)
+```
+]
+
+---
+
+class: center, middle
+
+# Now the fun stuff!
+
+---
+
+# Transformation of the data are handled `r I(hexes(c("fable")))`
+
+There is a way to `ensemble` models here
+
+.code60[
+```{r,fig.height=4.5, fig.width=12, fig.align='center'}
+tourism_tsbl %>% 
+  filter(Region == "Australia's South West", Purpose == "Holiday") %>% 
+  filter(year(Quarter) < 2015) %>%  # get training data #<<
+  model(
+    snaive = SNAIVE(log(Trips)), #<<
+    arima = ARIMA(log(Trips)), #<<
+    ets = ETS(log(Trips)) #<<
+  ) %>% 
+  mutate(ensemble = (snaive + arima + ets)/3)-> fit_benchmark
+
+fit_benchmark %>% 
+  fabletools::forecast(h = "3 years") %>% 
+  autoplot(tourism_tsbl) #<<
+
+```
+]
+
+---
+
+# Ensemble accuracy `r I(hexes(c("fable")))`
+
+```{r}
+fit_benchmark %>% 
+  fabletools::forecast(h = "3 years") %>% 
+  accuracy(tourism_tsbl) #<<
+```
+
+
+---
+
+# Slap a model on 304 time series in tsibble `r I(hexes(c("fable")))`
+
+.code80[
+```{r}
+tourism_tsbl %>% 
+  #filter(Region == "Australia's South West", Purpose == "Holiday") %>% 
+  filter(year(Quarter) < 2015) %>%  # get training data #<<
+  model(
+    snaive = SNAIVE(Trips),
+    arima = ARIMA(Trips),
+    ets = ETS(Trips)
+  ) -> fit_benchmark_All
+
+fit_benchmark_All
+```
+]
+
+---
+
+# Get forecasts for each series on demand `r I(hexes(c("fable")))`
+
+.code80[
+```{r,fig.height=3, fig.width=8, fig.align='center'}
+fit_benchmark_All %>% 
+  filter(Region == 'Adelaide',
+         Purpose == 'Holiday') %>% 
+  forecast(h = "3 years") %>% 
+  
+  autoplot(tourism_tsbl, level = NULL) + theme_bw()
+```
+]
+
+.code80[
+```{r}
+fit_benchmark_All %>% 
+  filter(Region == 'Adelaide',
+         Purpose == 'Holiday') %>% 
+  forecast(h = "3 years") %>% 
+  accuracy(tourism_tsbl)
+```
+]
 
 
 

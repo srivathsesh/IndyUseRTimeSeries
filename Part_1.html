@@ -41,24 +41,9 @@ Technical reference:
 
 https://otexts.com/fpp3/
 
+This slide deck:
 
-
-
----
-
-# Agenda
-
-
-* Why `ts`ibble?
-
-  + Data type
-  + Issue / Problem
-  
-* Why fable?
-
-  + Modeling features
-  
-* feas`ts`
+https://github.com/srivathsesh/IndyUseRTimeSeries
 
 
 
@@ -72,7 +57,7 @@ library(fpp3)
 ```
 
 ```
-## ── Attaching packages ───────────────────────────────────────────────── fpp3 0.1 ──
+## ── Attaching packages ──────────────────────────────────────────────────────────────────────────────────────── fpp3 0.1 ──
 ```
 
 ```
@@ -84,7 +69,7 @@ library(fpp3)
 ```
 
 ```
-## ── Conflicts ──────────────────────────────────────────────────── fpp3_conflicts ──
+## ── Conflicts ─────────────────────────────────────────────────────────────────────────────────────────── fpp3_conflicts ──
 ## x lubridate::date()       masks base::date()
 ## x dplyr::filter()         masks stats::filter()
 ## x tsibble::id()           masks dplyr::id()
@@ -99,8 +84,21 @@ library(purrr)
 
 ---
 
-# Explore a dataset...
+# Why `tidyverts`?
 
+1. Packages like stats, forecast, astsa requires input data as a univariate time series data.
+
+   +  What if you have a large data comprised of many time series? many variables floating in R's envioronment?
+   
+2. Interface with many methods in `tidyverse`.
+
+3. Awesome plotting methods.
+
+4. Interface with `broom` to inspect model.
+
+5. Easy evaluation of model metrics.
+
+.code80[
 
 ```r
 download.file("http://robjhyndman.com/data/tourism.xlsx", tourism_file &lt;- tempfile())
@@ -119,7 +117,7 @@ my_tourism %&gt;% head()
 ## 5 1999-01-01 Adelaide South Australia Business  137.
 ## 6 1999-04-01 Adelaide South Australia Business  200.
 ```
-
+]
 ---
 
 
@@ -183,11 +181,12 @@ my_tourism %&gt;%
 ---
 # Investigating time series 
 
+To...
 
-* Decompose series into trend, season and remainders
-* Fit models
+   * Decompose series into trend, season and remainders
+   * Fit models
 
-We needed the data to be as univariate time series object - `ts()`.
+We need the data to be as univariate time series object - `ts()`.
 
 
 ```r
@@ -196,7 +195,8 @@ We needed the data to be as univariate time series object - `ts()`.
 ?stats::arima
 ```
 
-For the 304 timeseries, it would be too much to handle...
+`Split the data into 304 time series?`
+
 ---
 
 # &lt;img src="images/purrr.png" class="title-hex"&gt;
@@ -361,18 +361,35 @@ tourism_xts %&gt;%
 &lt;img src="images/part-1-unnamed-chunk-7-1.png" style="display: block; margin: auto;" /&gt;
 ]
 
-It will be a very wide table for 304 timeseries. 
+It will be a `very wide` table for 304 timeseries. 
 
-What do we do? We use tsibble!
+What do we do? We use `tsibble!`
+
 
 ---
 
-# tsibble `components` &lt;img src="images/tsibble.png" class="title-hex"&gt;
+# Modeling Process - Time series data.
+
+1. `Inspect &amp; Explore data.`
+
+2. Determine transformation process (if required).
+
+3. Choose training, validation &amp;/ test data.
+
+4. Fit models.
+
+5. Inspect model metrics.
+
+
+---
+
+# Components of tsibble data type &lt;img src="images/tsibble.png" class="title-hex"&gt;
 
 1. `Index`
 2. `Key`
 3. Measured
 
+.code80[
 
 ```r
 my_tourism %&gt;% 
@@ -400,6 +417,7 @@ tourism_tsbl
 ## 10 2000 Q2 Adelaide South Australia Business  169.
 ## # … with 24,310 more rows
 ```
+]
 
 ---
 
@@ -625,7 +643,7 @@ tsibbledata::nyc_bikes %&gt;%
 tourism_tsbl %&gt;% 
   select(-State) %&gt;% 
   filter(Region =='Gold Coast', Purpose == 'Holiday') %&gt;% 
-  gg_tsdisplay(Trips) 
+  gg_tsdisplay(Trips)
 ```
 
 &lt;img src="images/part-1-unnamed-chunk-20-1.png" style="display: block; margin: auto;" /&gt;
@@ -633,17 +651,436 @@ tourism_tsbl %&gt;%
 
 ---
 
-.code80[
+# ACF &amp; PACF &lt;img src="images/tsibble.png" class="title-hex"&gt;
+
 
 ```r
 tourism_tsbl %&gt;% 
   select(-State) %&gt;% 
   filter(Region =='Gold Coast', Purpose == 'Holiday') %&gt;% 
 * PACF(Trips) %&gt;% # Try ACF
-  autoplot()
+  autoplot() + theme_bw()
 ```
 
 &lt;img src="images/part-1-unnamed-chunk-21-1.png" style="display: block; margin: auto;" /&gt;
+
+---
+# `gg_lag()` &lt;img src="images/tsibble.png" class="title-hex"&gt;
+.code80[
+
+```r
+tourism_tsbl %&gt;% 
+  select(-State) %&gt;% 
+  filter(Region =='Gold Coast', Purpose == 'Holiday') %&gt;% 
+* gg_lag(Trips, geom = "point") +
+  theme_bw()
+```
+
+&lt;img src="images/part-1-unnamed-chunk-22-1.png" style="display: block; margin: auto;" /&gt;
+]
+
+---
+# Modeling Process
+
+1. Inspect &amp; Explore data.
+2. `Determine transformation process (if required).`
+3. Choose training, validation &amp;/ test data
+4. Fit models.
+5. Inspect model metrics.
+
+---
+
+
+# Transformations &lt;img src="images/tsibble.png" class="title-hex"&gt;&lt;img src="images/feasts.png" class="title-hex"&gt;&lt;img src="images/fable.png" class="title-hex"&gt;
+
+ Variance stabilization 
+ 
+
+```r
+food &lt;- aus_retail %&gt;% 
+  filter(Industry == "Food retailing") %&gt;% 
+  summarise(Turnover = sum(Turnover))
+food %&gt;% 
+  autoplot(Turnover) + theme_bw()
+```
+
+![](images/part-1-unnamed-chunk-23-1.png)&lt;!-- --&gt;
+
+---
+# Varaince stabilization &lt;img src="images/tsibble.png" class="title-hex"&gt;&lt;img src="images/feasts.png" class="title-hex"&gt;&lt;img src="images/fable.png" class="title-hex"&gt;
+
+.code80[
+
+```r
+BoxCoxLambda &lt;- food %&gt;% 
+* features(Turnover, features = guerrero) %&gt;%  #?features_by_tag
+  pull(lambda_guerrero)
+
+BoxCoxLambda
+```
+
+```
+## [1] 0.05241123
+```
+]
+
+.code80[
+
+```r
+food %&gt;% 
+* autoplot(box_cox(Turnover,BoxCoxLambda)) +
+  labs( y = "Transformed Turnover") +
+  theme_bw()
+```
+
+&lt;img src="images/part-1-unnamed-chunk-25-1.png" style="display: block; margin: auto;" /&gt;
+]
+
+---
+
+# Feature Extraction &lt;img src="images/tsibble.png" class="title-hex"&gt;&lt;img src="images/feasts.png" class="title-hex"&gt;&lt;img src="images/fable.png" class="title-hex"&gt;
+
+.code80[
+
+```r
+tourism_tsbl %&gt;% 
+  features(Trips,feat_stl) %&gt;% 
+  head()
+```
+
+```
+## # A tibble: 6 x 12
+##   Region State Purpose trend_strength seasonal_streng… seasonal_peak_y…
+##   &lt;chr&gt;  &lt;chr&gt; &lt;chr&gt;            &lt;dbl&gt;            &lt;dbl&gt;            &lt;dbl&gt;
+## 1 Adela… Sout… Busine…          0.451            0.380                3
+## 2 Adela… Sout… Holiday          0.541            0.601                1
+## 3 Adela… Sout… Other            0.743            0.189                2
+## 4 Adela… Sout… Visiti…          0.433            0.446                1
+## 5 Adela… Sout… Busine…          0.453            0.140                3
+## 6 Adela… Sout… Holiday          0.512            0.244                2
+## # … with 6 more variables: seasonal_trough_year &lt;dbl&gt;, spikiness &lt;dbl&gt;,
+## #   linearity &lt;dbl&gt;, curvature &lt;dbl&gt;, stl_e_acf1 &lt;dbl&gt;, stl_e_acf10 &lt;dbl&gt;
+```
+]
+
+
+---
+
+# &lt;img src="images/tsibble.png" class="title-hex"&gt;&lt;img src="images/feasts.png" class="title-hex"&gt;&lt;img src="images/fable.png" class="title-hex"&gt;
+
+.code80[
+
+```r
+tourism_tsbl %&gt;% 
+  features(Trips,feat_stl) %&gt;% 
+  ggplot(aes(x=trend_strength, y = seasonal_strength_year, col = Purpose)) + 
+  facet_wrap(~State) +
+  geom_point() + theme_bw()
+```
+
+![](images/part-1-unnamed-chunk-27-1.png)&lt;!-- --&gt;
+]
+
+
+---
+# Find the ost seasonal `and` trending series &lt;img src="images/tsibble.png" class="title-hex"&gt;&lt;img src="images/feasts.png" class="title-hex"&gt;&lt;img src="images/fable.png" class="title-hex"&gt;
+
+.code80[
+
+```r
+tourism_tsbl %&gt;% 
+  features(Trips,feat_stl) %&gt;% 
+  mutate(trendSeasonScore = trend_strength * seasonal_strength_year) %&gt;% 
+  filter(trendSeasonScore == max(trendSeasonScore)) -&gt; TrendingSeasonal
+
+tourism_tsbl %&gt;% 
+  right_join(TrendingSeasonal) %&gt;% 
+  autoplot(Trips) + facet_wrap(~State + Region + Purpose) + theme_bw()
+```
+
+```
+## Joining, by = c("Region", "State", "Purpose")
+```
+
+&lt;img src="images/part-1-unnamed-chunk-28-1.png" style="display: block; margin: auto;" /&gt;
+]
+
+---
+# Modeling Process
+
+1. Inspect &amp; Explore data.
+2. Determine transformation process (if required).
+3. `Choose training, validation &amp;/ test data`
+4. `Fit models.`
+5. Inspect model metrics.
+
+---
+
+# Fit model &lt;img src="images/tsibble.png" class="title-hex"&gt;&lt;img src="images/fable.png" class="title-hex"&gt;
+
+
+.code80[
+
+```r
+# benchmark meodels
+tourism_tsbl %&gt;% 
+  filter(Region == "Australia's South West", Purpose == "Holiday") %&gt;% 
+* filter(year(Quarter) &lt; 2015) %&gt;%  # get training data
+  model(
+    snaive = SNAIVE(Trips),
+    arima = ARIMA(Trips),
+    ets = ETS(Trips)
+  ) -&gt; fit_benchmark
+
+fit_benchmark
+```
+
+```
+## # A mable: 1 x 6
+## # Key:     Region, State, Purpose [1]
+##   Region           State         Purpose snaive  arima                 ets      
+##   &lt;chr&gt;            &lt;chr&gt;         &lt;chr&gt;   &lt;model&gt; &lt;model&gt;               &lt;model&gt;  
+## 1 Australia's Sou… Western Aust… Holiday &lt;SNAIV… &lt;ARIMA(1,0,0)(0,1,2)… &lt;ETS(M,N…
+```
+]
+
+---
+# Model report &amp; forecast &lt;img src="images/fable.png" class="title-hex"&gt;
+
+.code80[
+
+```r
+fit_benchmark %&gt;% 
+  select(arima) %&gt;% 
+* report()
+```
+
+```
+## Series: Trips 
+## Model: ARIMA(1,0,0)(0,1,2)[4] w/ drift 
+## 
+## Coefficients:
+##          ar1     sma1     sma2  constant
+##       0.4370  -0.4740  -0.3989    3.0155
+## s.e.  0.1156   0.1954   0.1637    1.6357
+## 
+## sigma^2 estimated as 2124:  log likelihood=-336.55
+## AIC=683.09   AICc=684.13   BIC=693.89
+```
+]
+
+**Fable is smart to figure the filtering and test data!**
+
+.code80[
+
+```r
+fit_benchmark %&gt;% 
+  fabletools::forecast(h = "3 years") -&gt; fcts
+
+fcts %&gt;% 
+* autoplot(tourism_tsbl) +
+  theme_bw()
+```
+
+&lt;img src="images/part-1-unnamed-chunk-31-1.png" style="display: block; margin: auto;" /&gt;
+]
+
+---
+# Modeling Process
+
+1. Inspect &amp; Explore data.
+2. Determine transformation process (if required).
+3. Choose training, validation &amp;/ test data`
+4. Fit models.`
+5. `Inspect model metrics.`
+
+
+---
+# OOS error &lt;img src="images/fable.png" class="title-hex"&gt;
+
+.code80[
+
+```r
+fcts %&gt;% 
+* accuracy(tourism_tsbl)
+```
+
+```
+## # A tibble: 3 x 12
+##   .model Region  State Purpose .type    ME  RMSE   MAE   MPE  MAPE  MASE    ACF1
+##   &lt;chr&gt;  &lt;chr&gt;   &lt;chr&gt; &lt;chr&gt;   &lt;chr&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt;   &lt;dbl&gt;
+## 1 arima  Austra… West… Holiday Test  59.8   75.7  61.0 13.1  13.6  1.48  -0.233 
+## 2 ets    Austra… West… Holiday Test  32.9   48.5  38.8  6.83  9.04 0.940 -0.349 
+## 3 snaive Austra… West… Holiday Test  -5.44  58.9  52.0 -1.30 12.5  1.26  -0.0663
+```
+]
+
+---
+# Inspect model fit &lt;img src="images/fable.png" class="title-hex"&gt;
+
+.code80[
+
+```r
+fit_benchmark %&gt;% 
+  select(ets) %&gt;% 
+  gg_tsresiduals()
+```
+
+![](images/part-1-unnamed-chunk-33-1.png)&lt;!-- --&gt;
+]
+
+.code80[
+
+```r
+augment(fit_benchmark) %&gt;% 
+  features(.resid,ljung_box)
+```
+
+```
+## # A tibble: 3 x 6
+##   Region                 State             Purpose .model lb_stat lb_pvalue
+##   &lt;chr&gt;                  &lt;chr&gt;             &lt;chr&gt;   &lt;chr&gt;    &lt;dbl&gt;     &lt;dbl&gt;
+## 1 Australia's South West Western Australia Holiday arima   0.115    0.735  
+## 2 Australia's South West Western Australia Holiday ets     0.0454   0.831  
+## 3 Australia's South West Western Australia Holiday snaive  6.98     0.00825
+```
+]
+
+---
+
+class: center, middle
+
+# Now the fun stuff!
+
+---
+
+# Transformation of the data are handled &lt;img src="images/fable.png" class="title-hex"&gt;
+
+There is a way to `ensemble` models here
+
+
+```r
+tourism_tsbl %&gt;% 
+  filter(Region == "Australia's South West", Purpose == "Holiday") %&gt;% 
+* filter(year(Quarter) &lt; 2015) %&gt;%  # get training data
+  model(
+*   snaive = SNAIVE(log(Trips)),
+*   arima = ARIMA(log(Trips)),
+*   ets = ETS(log(Trips))
+  ) %&gt;% 
+  mutate(ensemble = (snaive + arima + ets)/3)-&gt; fit_benchmark
+
+fit_benchmark %&gt;% 
+  fabletools::forecast(h = "3 years") %&gt;% 
+* autoplot(tourism_tsbl)
+```
+
+```
+## Warning: Combinations of non-normal forecast distributions is not supported.
+```
+
+&lt;img src="images/part-1-unnamed-chunk-35-1.png" style="display: block; margin: auto;" /&gt;
+
+---
+
+# Ensemble accuracy &lt;img src="images/fable.png" class="title-hex"&gt;
+
+
+```r
+fit_benchmark %&gt;% 
+  fabletools::forecast(h = "3 years") %&gt;% 
+* accuracy(tourism_tsbl)
+```
+
+```
+## Warning: Combinations of non-normal forecast distributions is not supported.
+```
+
+```
+## # A tibble: 4 x 12
+##   .model  Region State Purpose .type    ME  RMSE   MAE   MPE  MAPE  MASE    ACF1
+##   &lt;chr&gt;   &lt;chr&gt;  &lt;chr&gt; &lt;chr&gt;   &lt;chr&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt;   &lt;dbl&gt;
+## 1 arima   Austr… West… Holiday Test  101.  112.  101.  23.7  23.7  2.45  -0.176 
+## 2 ensemb… Austr… West… Holiday Test   35.9  54.7  40.6  8.12  9.42 0.983 -0.273 
+## 3 ets     Austr… West… Holiday Test   25.2  43.0  35.5  5.09  8.46 0.859 -0.340 
+## 4 snaive  Austr… West… Holiday Test  -18.5  64.2  57.3 -4.43 13.9  1.39  -0.0445
+```
+
+
+---
+
+# Slap a model on 304 time series in tsibble &lt;img src="images/fable.png" class="title-hex"&gt;
+
+.code80[
+
+```r
+tourism_tsbl %&gt;% 
+  #filter(Region == "Australia's South West", Purpose == "Holiday") %&gt;% 
+* filter(year(Quarter) &lt; 2015) %&gt;%  # get training data
+  model(
+    snaive = SNAIVE(Trips),
+    arima = ARIMA(Trips),
+    ets = ETS(Trips)
+  ) -&gt; fit_benchmark_All
+
+fit_benchmark_All
+```
+
+```
+## # A mable: 304 x 6
+## # Key:     Region, State, Purpose [304]
+##    Region       State          Purpose snaive  arima                   ets      
+##    &lt;chr&gt;        &lt;chr&gt;          &lt;chr&gt;   &lt;model&gt; &lt;model&gt;                 &lt;model&gt;  
+##  1 Adelaide     South Austral… Busine… &lt;SNAIV… &lt;ARIMA(0,0,0)(1,0,1)[4… &lt;ETS(M,N…
+##  2 Adelaide     South Austral… Holiday &lt;SNAIV… &lt;ARIMA(0,0,0)(2,0,0)[4… &lt;ETS(M,N…
+##  3 Adelaide     South Austral… Other   &lt;SNAIV… &lt;ARIMA(0,1,1) w/ drift&gt; &lt;ETS(M,A…
+##  4 Adelaide     South Austral… Visiti… &lt;SNAIV… &lt;ARIMA(0,0,0)(1,0,1)[4… &lt;ETS(A,N…
+##  5 Adelaide Hi… South Austral… Busine… &lt;SNAIV… &lt;ARIMA(1,0,0) w/ mean&gt;  &lt;ETS(A,N…
+##  6 Adelaide Hi… South Austral… Holiday &lt;SNAIV… &lt;ARIMA(0,0,0) w/ mean&gt;  &lt;ETS(A,N…
+##  7 Adelaide Hi… South Austral… Other   &lt;SNAIV… &lt;ARIMA(0,0,1)(1,0,0)[4… &lt;ETS(A,N…
+##  8 Adelaide Hi… South Austral… Visiti… &lt;SNAIV… &lt;ARIMA(0,0,0) w/ mean&gt;  &lt;ETS(M,A…
+##  9 Alice Sprin… Northern Terr… Busine… &lt;SNAIV… &lt;ARIMA(0,0,0) w/ mean&gt;  &lt;ETS(A,N…
+## 10 Alice Sprin… Northern Terr… Holiday &lt;SNAIV… &lt;ARIMA(0,0,0)(0,1,2)[4… &lt;ETS(M,N…
+## # … with 294 more rows
+```
+]
+
+---
+
+# Get forecasts for each series on demand &lt;img src="images/fable.png" class="title-hex"&gt;
+
+.code80[
+
+```r
+fit_benchmark_All %&gt;% 
+  filter(Region == 'Adelaide',
+         Purpose == 'Holiday') %&gt;% 
+  forecast(h = "3 years") %&gt;% 
+  
+  autoplot(tourism_tsbl, level = NULL) + theme_bw()
+```
+
+&lt;img src="images/part-1-unnamed-chunk-38-1.png" style="display: block; margin: auto;" /&gt;
+]
+
+.code80[
+
+```r
+fit_benchmark_All %&gt;% 
+  filter(Region == 'Adelaide',
+         Purpose == 'Holiday') %&gt;% 
+  forecast(h = "3 years") %&gt;% 
+  accuracy(tourism_tsbl)
+```
+
+```
+## # A tibble: 3 x 12
+##   .model Region State Purpose .type    ME  RMSE   MAE   MPE  MAPE  MASE     ACF1
+##   &lt;chr&gt;  &lt;chr&gt;  &lt;chr&gt; &lt;chr&gt;   &lt;chr&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt; &lt;dbl&gt;    &lt;dbl&gt;
+## 1 arima  Adela… Sout… Holiday Test  21.9   34.8  28.0  9.93  14.8  1.31 -0.0202 
+## 2 ets    Adela… Sout… Holiday Test  25.3   34.5  29.9 12.4   16.0  1.40  0.0900 
+## 3 snaive Adela… Sout… Holiday Test   8.22  30.5  21.4  2.44  12.4  1.00  0.00218
+```
 ]
     </textarea>
 <style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
