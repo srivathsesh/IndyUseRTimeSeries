@@ -3,6 +3,7 @@ title: "Intro to tidyverts"
 subtitle: ""
 author: Sri Seshadri
 date: "`r Sys.Date()`"
+session: 01
 output:
   xaringan::moon_reader:
     css: ["default", "assets/css/aml-theme.css", "assets/css/aml-fonts.css"]
@@ -23,9 +24,9 @@ params:
   RStudioConf: "https://github.com/rstudio-conf-2020/time-series-forecasting"
   fpp3: "https://otexts.com/fpp3/"
   deck: "https://github.com/srivathsesh/IndyUseRTimeSeries"
-  css: "https://github.com/rstudio-conf-2020/applied-ml"
+  csscode: "https://github.com/rstudio-conf-2020/applied-ml"
 editor_options: 
-  chunk_output_typ: console
+  chunk_output_type: console
 ---
 
 ```{r knitr, include = FALSE}
@@ -71,7 +72,7 @@ This slide deck:
 
 CSS stolen from:
 
-`r params$css`
+`r params$csscode`
 
 
 

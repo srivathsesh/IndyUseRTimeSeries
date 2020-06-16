@@ -61,25 +61,23 @@ library(fpp3)
 ```
 
 ```
-## ── Attaching packages ──────────────────────────────────────────────────────── fpp3 0.1 ──
+## ── Attaching packages ────────────────────────────────────────── fpp3 0.3 ──
 ```
 
 ```
-## ✓ tibble      3.0.1     ✓ tsibble     0.8.6
-## ✓ dplyr       0.8.5     ✓ tsibbledata 0.1.0
-## ✓ tidyr       1.0.2     ✓ feasts      0.1.2
-## ✓ lubridate   1.7.4     ✓ fable       0.1.1
-## ✓ ggplot2     3.2.1
+## ✓ tibble      3.0.1     ✓ tsibble     0.9.0
+## ✓ dplyr       1.0.0     ✓ tsibbledata 0.2.0
+## ✓ tidyr       1.1.0     ✓ feasts      0.1.3
+## ✓ lubridate   1.7.9     ✓ fable       0.2.0
+## ✓ ggplot2     3.3.1
 ```
 
 ```
-## ── Conflicts ─────────────────────────────────────────────────────────── fpp3_conflicts ──
-## x lubridate::date()       masks base::date()
-## x dplyr::filter()         masks stats::filter()
-## x tsibble::id()           masks dplyr::id()
-## x tsibble::interval()     masks lubridate::interval()
-## x dplyr::lag()            masks stats::lag()
-## x tsibble::new_interval() masks lubridate::new_interval()
+## ── Conflicts ───────────────────────────────────────────── fpp3_conflicts ──
+## x lubridate::date()   masks base::date()
+## x dplyr::filter()     masks stats::filter()
+## x tsibble::interval() masks lubridate::interval()
+## x dplyr::lag()        masks stats::lag()
 ```
 
 ```r
@@ -458,10 +456,6 @@ tsibbledata::aus_production %&gt;%
 ```
 
 ```
-## Selecting index: "Quarter"
-```
-
-```
 ## # A tsibble: 6 x 3 [1Q]
 ##    Beer   Gas Quarter
 ##   &lt;dbl&gt; &lt;dbl&gt;   &lt;qtr&gt;
@@ -524,8 +518,9 @@ tourism_tsbl %&gt;%
 ```
 
 ```
-## # A tibble: 6 x 4
-## # Groups:   State [1]
+## # A tsibble: 6 x 4 [1Q]
+## # Key:       State, Purpose [1]
+## # Groups:    State [1]
 ##   State Purpose  Quarter Trips
 ##   &lt;chr&gt; &lt;chr&gt;      &lt;qtr&gt; &lt;dbl&gt;
 ## 1 ACT   Business 1998 Q1 150. 
@@ -607,7 +602,7 @@ tsibbledata::nyc_bikes %&gt;%
 ```
 
 ```
-## # A tsibble: 5 x 12 [!] &lt;America/New_York&gt;
+## # A tsibble: 5 x 12 [0.0149047991726547µs] &lt;America/New_York&gt;
 ## # Key:       bike_id [1]
 ##   bike_id start_time          stop_time           start_station start_lat
 ##   &lt;fct&gt;   &lt;dttm&gt;              &lt;dttm&gt;              &lt;fct&gt;             &lt;dbl&gt;
@@ -849,9 +844,9 @@ fit_benchmark
 ```
 ## # A mable: 1 x 6
 ## # Key:     Region, State, Purpose [1]
-##   Region           State         Purpose snaive  arima                 ets      
-##   &lt;chr&gt;            &lt;chr&gt;         &lt;chr&gt;   &lt;model&gt; &lt;model&gt;               &lt;model&gt;  
-## 1 Australia's Sou… Western Aust… Holiday &lt;SNAIV… &lt;ARIMA(1,0,0)(0,1,2)… &lt;ETS(M,N…
+##   Region   State Purpose   snaive                             arima          ets
+##   &lt;chr&gt;    &lt;chr&gt; &lt;chr&gt;    &lt;model&gt;                           &lt;model&gt;      &lt;model&gt;
+## 1 Austral… West… Holiday &lt;SNAIVE&gt; &lt;ARIMA(1,0,0)(0,1,2)[4] w/ drift&gt; &lt;ETS(M,N,M)&gt;
 ```
 ]
 
@@ -1047,18 +1042,18 @@ fit_benchmark_All
 ```
 ## # A mable: 304 x 6
 ## # Key:     Region, State, Purpose [304]
-##    Region       State          Purpose snaive  arima                   ets      
-##    &lt;chr&gt;        &lt;chr&gt;          &lt;chr&gt;   &lt;model&gt; &lt;model&gt;                 &lt;model&gt;  
-##  1 Adelaide     South Austral… Busine… &lt;SNAIV… &lt;ARIMA(0,0,0)(1,0,1)[4… &lt;ETS(M,N…
-##  2 Adelaide     South Austral… Holiday &lt;SNAIV… &lt;ARIMA(0,0,0)(2,0,0)[4… &lt;ETS(M,N…
-##  3 Adelaide     South Austral… Other   &lt;SNAIV… &lt;ARIMA(0,1,1) w/ drift&gt; &lt;ETS(M,A…
-##  4 Adelaide     South Austral… Visiti… &lt;SNAIV… &lt;ARIMA(0,0,0)(1,0,1)[4… &lt;ETS(A,N…
-##  5 Adelaide Hi… South Austral… Busine… &lt;SNAIV… &lt;ARIMA(1,0,0) w/ mean&gt;  &lt;ETS(A,N…
-##  6 Adelaide Hi… South Austral… Holiday &lt;SNAIV… &lt;ARIMA(0,0,0) w/ mean&gt;  &lt;ETS(A,N…
-##  7 Adelaide Hi… South Austral… Other   &lt;SNAIV… &lt;ARIMA(0,0,1)(1,0,0)[4… &lt;ETS(A,N…
-##  8 Adelaide Hi… South Austral… Visiti… &lt;SNAIV… &lt;ARIMA(0,0,0) w/ mean&gt;  &lt;ETS(M,A…
-##  9 Alice Sprin… Northern Terr… Busine… &lt;SNAIV… &lt;ARIMA(0,0,0) w/ mean&gt;  &lt;ETS(A,N…
-## 10 Alice Sprin… Northern Terr… Holiday &lt;SNAIV… &lt;ARIMA(0,0,0)(0,1,2)[4… &lt;ETS(M,N…
+##    Region  State Purpose   snaive                             arima          ets
+##    &lt;chr&gt;   &lt;chr&gt; &lt;chr&gt;    &lt;model&gt;                           &lt;model&gt;      &lt;model&gt;
+##  1 Adelai… Sout… Busine… &lt;SNAIVE&gt;  &lt;ARIMA(0,0,0)(1,0,1)[4] w/ mean&gt; &lt;ETS(M,N,M)&gt;
+##  2 Adelai… Sout… Holiday &lt;SNAIVE&gt;  &lt;ARIMA(0,0,0)(2,0,0)[4] w/ mean&gt; &lt;ETS(M,N,A)&gt;
+##  3 Adelai… Sout… Other   &lt;SNAIVE&gt;           &lt;ARIMA(0,1,1) w/ drift&gt; &lt;ETS(M,A,N)&gt;
+##  4 Adelai… Sout… Visiti… &lt;SNAIVE&gt;  &lt;ARIMA(0,0,0)(1,0,1)[4] w/ mean&gt; &lt;ETS(A,N,A)&gt;
+##  5 Adelai… Sout… Busine… &lt;SNAIVE&gt;            &lt;ARIMA(1,0,0) w/ mean&gt; &lt;ETS(A,N,N)&gt;
+##  6 Adelai… Sout… Holiday &lt;SNAIVE&gt;            &lt;ARIMA(0,0,0) w/ mean&gt; &lt;ETS(A,N,N)&gt;
+##  7 Adelai… Sout… Other   &lt;SNAIVE&gt;  &lt;ARIMA(0,0,1)(1,0,0)[4] w/ mean&gt; &lt;ETS(A,N,N)&gt;
+##  8 Adelai… Sout… Visiti… &lt;SNAIVE&gt;            &lt;ARIMA(0,0,0) w/ mean&gt; &lt;ETS(M,A,M)&gt;
+##  9 Alice … Nort… Busine… &lt;SNAIVE&gt;            &lt;ARIMA(0,0,0) w/ mean&gt; &lt;ETS(A,N,N)&gt;
+## 10 Alice … Nort… Holiday &lt;SNAIVE&gt; &lt;ARIMA(0,0,0)(0,1,2)[4] w/ drift&gt; &lt;ETS(M,N,A)&gt;
 ## # … with 294 more rows
 ```
 ]
@@ -1297,30 +1292,20 @@ if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
 })();
 (function() {
   "use strict"
-  /* Replace <script> tags in slides area to make them executable
-   *
-   * Runs after post-processing of markdown source into slides and replaces only
-   * <script>s on the last slide of continued slides using the .has-continuation
-   * class added by xaringan. Finally, any <script>s in the slides area that
-   * aren't executed are commented out.
-   */
+  // Replace <script> tags in slides area to make them executable
   var scripts = document.querySelectorAll(
-    '.remark-slides-area .remark-slide-container:not(.has-continuation) script'
+    '.remark-slides-area .remark-slide-container script'
   );
   if (!scripts.length) return;
   for (var i = 0; i < scripts.length; i++) {
     var s = document.createElement('script');
     var code = document.createTextNode(scripts[i].textContent);
     s.appendChild(code);
+    var scriptAttrs = scripts[i].attributes;
+    for (var j = 0; j < scriptAttrs.length; j++) {
+      s.setAttribute(scriptAttrs[j].name, scriptAttrs[j].value);
+    }
     scripts[i].parentElement.replaceChild(s, scripts[i]);
-  }
-  var scriptsNotExecuted = document.querySelectorAll(
-    '.remark-slides-area .remark-slide-container.has-continuation script'
-  );
-  if (!scriptsNotExecuted.length) return;
-  for (var i = 0; i < scriptsNotExecuted.length; i++) {
-    var comment = document.createComment(scriptsNotExecuted[i].outerHTML)
-    scriptsNotExecuted[i].parentElement.replaceChild(comment, scriptsNotExecuted[i])
   }
 })();
 (function() {
