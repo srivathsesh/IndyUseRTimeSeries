@@ -24,6 +24,7 @@ params:
   RStudioConf: "https://github.com/rstudio-conf-2020/time-series-forecasting"
   fpp3: "https://otexts.com/fpp3/"
   deck: "https://github.com/srivathsesh/IndyUseRTimeSeries"
+  Project: "https://github.com/srivathsesh/USSalesForecasting"
   csscode: "https://github.com/rstudio-conf-2020/applied-ml"
 editor_options: 
   chunk_output_type: console
@@ -73,6 +74,10 @@ This slide deck:
 CSS stolen from:
 
 `r params$csscode`
+
+Forecasting of US sales project:
+
+`r params$Project`
 
 
 
@@ -753,6 +758,19 @@ report(fit)
 
 ---
 
+.code80[
+```{r}
+us_change %>% 
+  model(tslm = TSLM(Consumption ~ Income + Production + season() + trend() + Savings)) -> fit2
+
+report(fit2)
+```
+]
+
+remember we need future values of Income, Production and Savings for forecasting
+
+---
+
 # Harmonic regression  `r I(hexes(c("fable")))`
 
 .code80[
@@ -809,3 +827,5 @@ fit %>%
   autoplot(aus_cafe) + theme_bw()
 ```
 ]
+
+
