@@ -304,13 +304,13 @@ tsibbledata::aus_production %>%
 tsibbledata::aus_production %>% 
   select(Beer,Gas) %>% 
   pivot_longer(-Quarter,names_to = "Key",values_to = "Production") %>% 
-  as_tsibble(key = Key, index = Quarter) %>% 
+  #as_tsibble(key = Key, index = Quarter) %>% 
   autoplot() + theme_bw()  -> p1 #<<
 
 tsibbledata::aus_production %>% 
   select(Beer,Gas) %>% 
   pivot_longer(-Quarter,names_to = "Key",values_to = "Production") %>% 
-  as_tsibble(key = Key, index = Quarter) %>% 
+  #as_tsibble(key = Key, index = Quarter) %>% 
   autoplot(log(Production)) + theme_bw()  -> p2 #<<
 
 gridExtra::grid.arrange(p1,p2,ncol = 2)
